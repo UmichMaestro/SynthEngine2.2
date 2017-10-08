@@ -6,6 +6,7 @@ cmake -G Xcode ..
 and then open the xcode project file, you may find maestro source code in the project navitor.
 To add source code, you need to update CMakeLists.txt as well.
 
+--------------------------------------------------------------
 
 RtAudio - a set of C++ classes that provide a common API for realtime audio input/output across Linux (native ALSA, JACK, PulseAudio and OSS), Macintosh OS X (CoreAudio and JACK), and Windows (DirectSound, ASIO and WASAPI) operating systems.
 
