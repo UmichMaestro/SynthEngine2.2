@@ -120,14 +120,15 @@ typedef struct {
 static int rtaudio_callback(void *outbuf, void *inbuf, unsigned int nFrames, double streamtime, RtAudioStreamStatus status, void *userdata) {
     float *buf = (float*)outbuf;
     CallbackData *data = (CallbackData*)userdata;
-    
     const float level = 0.125f;
     
     for (int sample = 0; sample < nFrames; ++sample)
     {
-        const float currentSample = (float) std::sin (data->currentAngle);
+        float currentSample = (float) std::cos (data->currentAngle) * level;
         data->currentAngle += angleDelta;
-        buf[sample] = currentSample * level;
+        
+        buf[sample*2] = currentSample;
+        buf[sample*2+1] = currentSample;
     }
     
     /*
@@ -162,7 +163,7 @@ int main(int argc, char* argv[]) {
     std::cout << "0" << std::endl;
     RtAudio *audio;
     unsigned int bufsize = 4096;
-    CallbackData data;
+    CallbackData *data = (CallbackData*)calloc(1, sizeof(CallbackData));
     try {
         audio = new RtAudio(RtAudio::MACOSX_CORE);
     }catch  (RtAudioError e){
@@ -182,7 +183,7 @@ int main(int argc, char* argv[]) {
     outParam->deviceId = devId;
     outParam->nChannels = 2;
     std::cout << "3" << std::endl;
-    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, rtaudio_callback, &data);
+    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, rtaudio_callback, data);
     std::cout << "4" << std::endl;
     audio->startStream();
     std::cout << "5" << std::endl;
