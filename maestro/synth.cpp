@@ -11,25 +11,19 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
-#include <thread>
-#include <chrono>
 #include <vector>
-#include "RtAudio.h"
-#include "parse_msm.c"
+#include "synth.h"
+
 /*
 //globals
 std::mutex sinLock;
 std::condition_variable cutoff;
 bool stop;
 */
-double pi = 3.1415926535897;
-float FREQUENCY = 440;
-const float SAMPLE_RATE = 44100;
-float SAMPLE_LEN = 1; //granularity of analysis data
-int GRANULARITY = 220;
-
-const double cyclesPerSample = FREQUENCY / SAMPLE_RATE; // [2]
-const double angleDelta = cyclesPerSample * 2.0 * pi;
+#define SAMPLE_RATE 44100.0
+#define SAMPLE_WINDOW 441
+#define BUFFER_MSM_COUNT 4 // how many msm amp data in each buffer
+unsigned int bufsize = SAMPLE_WINDOW*BUFFER_MSM_COUNT;
 
 /*
 typedef struct Model {
@@ -114,92 +108,111 @@ Instrument_t inst;
 std::thread *t;
 */
 
-typedef struct {
-    double currentAngle;
-} CallbackData;
-
 static int rtaudio_callback(void *outbuf, void *inbuf, unsigned int nFrames, double streamtime, RtAudioStreamStatus status, void *userdata) {
+    const double F = M_PI * 2 / SAMPLE_RATE;
+    
     float *buf = (float*)outbuf;
+    memset(outbuf, 0, nFrames*2*sizeof(float));
+    
     CallbackData *data = (CallbackData*)userdata;
-    const float level = 0.125f;
+    int time = data->time;
     
-    for (int sample = 0; sample < nFrames; ++sample)
-    {
-        float currentSample = (float) std::cos (data->currentAngle) * level;
-        data->currentAngle += angleDelta;
-        
-        buf[sample*2] = currentSample;
-        buf[sample*2+1] = currentSample;
-    }
+    int partials = data->msm->partials;
     
-    /*
+    int fundamentalFreq = data->msm->frequency;
+    double phaseIncr = F * fundamentalFreq;
     
-    //create buffers
-    unsigned numBuffers = 4;
-    ALuint buf[numBuffers];
-    alGenBuffers(numBuffers, buf);
-    al_check_error();
-    float freq = 440.f;
-    unsigned bufLen_ms = 20;
-    unsigned sample_rate = 22050;
-    size_t buf_size = double(bufLen_ms)/1000.0 * sample_rate;
+    double phase = data->phase;
     
-    for (int i=0; i<numBuffers; ++i) {
-        short *samples;
-        samples = new short[buf_size];
-        for(int s=0; s<buf_size; ++s) {
-            samples[s] = 32765 * sin( (2.f*float(M_PI)*freq)/sample_rate * s );
+    for (int t = 0; t < BUFFER_MSM_COUNT; t++) {
+        double *amp0 = data->msm->amplitudeForTime(time+t);
+        double *amp1 = data->msm->amplitudeForTime(time+t+1);
+        if (amp0 == NULL || amp1 == NULL) {
+            std::cout << "Reached the end.\n";
+            return 1; // TODO::::
         }
-        alBufferData(buf[i], AL_FORMAT_MONO16, samples, buf_size, sample_rate);
-        al_check_error();
+        
+        double p = phase;
+        for (int i=0; i<partials; i++) {
+            double a0 = amp0[i];
+            double a1 = amp1[i];
+            p = phase;
+            for (int s = 0; s < SAMPLE_WINDOW; s++) {
+                double amp = a0 + (a1-a0)*s/(double)SAMPLE_WINDOW; // amp interpolation
+                double out = amp * sin(p*(i+1)) / 256;
+                int outIndex = t*SAMPLE_WINDOW + s;
+                buf[outIndex*2] += out;
+                buf[outIndex*2+1] += out;
+                p += phaseIncr;
+            }
+            
+        }
+        phase = p;
     }
     
-    */
-    
+    data->time += BUFFER_MSM_COUNT;
+    data->phase = phase;
     
     return 0;
 }
 
-int main(int argc, char* argv[]) {
-    Model m = parseMSMAtPath("Horn.ff.C4B4-10-442.msm");
-    
+Synth::Synth() {
     std::cout << "0" << std::endl;
-    RtAudio *audio;
-    unsigned int bufsize = 4096;
-    CallbackData *data = (CallbackData*)calloc(1, sizeof(CallbackData));
+    
     try {
         audio = new RtAudio(RtAudio::MACOSX_CORE);
     }catch  (RtAudioError e){
         fprintf(stderr, "fail to create RtAudio: %s¥n", e.what());
-        return 1;
+        return ;
     }
     if (!audio){
         fprintf(stderr, "fail to allocate RtAudio¥n");
-        return 1;
+        return ;
     }
     /* probe audio devices */
     unsigned int devId = audio->getDefaultOutputDevice();
     std::cout << "1" << std::endl;
     /* Setup output stream parameters */
-    RtAudio::StreamParameters *outParam = new RtAudio::StreamParameters();
+    outParam = new RtAudio::StreamParameters();
     std::cout << "2" << std::endl;
     outParam->deviceId = devId;
     outParam->nChannels = 2;
-    std::cout << "3" << std::endl;
-    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, rtaudio_callback, data);
-    std::cout << "4" << std::endl;
-    audio->startStream();
-    std::cout << "5" << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    audio->stopStream();
-    audio->closeStream();
-    delete audio;
     
-    return 0;
+    data = new CallbackData();
+    
+    
+    
 }
 
+void Synth::synthInit(std::string path) {
+    msm = new MaestroSynthModel(path);
+    
+    data->phase = 0;
+    data->time = 0;
+    data->msm = this->msm;
+    
+    std::cout << "Partials: " << msm->partials << std::endl;
+    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, rtaudio_callback, data);
+    
+    return;
+}
 
+void Synth::soundStart() {
+    std::cout << "4" << std::endl;
+    audio->startStream();
+}
 
+void Synth::soundRelease() {
+    std::cout << "5" << std::endl;
+    if(audio->isStreamOpen()) {
+//        audio->stopStream();
+        audio->closeStream();
+    }
+}
+
+void Synth::synthDestroy() {
+    delete audio;
+}
 
 /*
 void alInit () {
