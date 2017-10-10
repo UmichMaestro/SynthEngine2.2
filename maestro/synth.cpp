@@ -113,7 +113,9 @@ Instrument_t inst;
 std::thread *t;
 */
 
-typedef struct {
+RtAudio *audio;
+
+typedef struct CallbackData{
     double currentAngle;
 } CallbackData;
 
@@ -131,144 +133,55 @@ static int rtaudio_callback(void *outbuf, void *inbuf, unsigned int nFrames, dou
         buf[sample*2+1] = currentSample;
     }
     
-    /*
-    
-    //create buffers
-    unsigned numBuffers = 4;
-    ALuint buf[numBuffers];
-    alGenBuffers(numBuffers, buf);
-    al_check_error();
-    float freq = 440.f;
-    unsigned bufLen_ms = 20;
-    unsigned sample_rate = 22050;
-    size_t buf_size = double(bufLen_ms)/1000.0 * sample_rate;
-    
-    for (int i=0; i<numBuffers; ++i) {
-        short *samples;
-        samples = new short[buf_size];
-        for(int s=0; s<buf_size; ++s) {
-            samples[s] = 32765 * sin( (2.f*float(M_PI)*freq)/sample_rate * s );
-        }
-        alBufferData(buf[i], AL_FORMAT_MONO16, samples, buf_size, sample_rate);
-        al_check_error();
-    }
-    
-    */
-    
-    
     return 0;
-}
-
-int main(int argc, char* argv[]) {
-    std::cout << "0" << std::endl;
-    RtAudio *audio;
-    unsigned int bufsize = 4096;
-    CallbackData *data = (CallbackData*)calloc(1, sizeof(CallbackData));
-    try {
-        audio = new RtAudio(RtAudio::MACOSX_CORE);
-    }catch  (RtAudioError e){
-        fprintf(stderr, "fail to create RtAudio: %s¥n", e.what());
-        return 1;
-    }
-    if (!audio){
-        fprintf(stderr, "fail to allocate RtAudio¥n");
-        return 1;
-    }
-    /* probe audio devices */
-    unsigned int devId = audio->getDefaultOutputDevice();
-    std::cout << "1" << std::endl;
-    /* Setup output stream parameters */
-    RtAudio::StreamParameters *outParam = new RtAudio::StreamParameters();
-    std::cout << "2" << std::endl;
-    outParam->deviceId = devId;
-    outParam->nChannels = 2;
-    std::cout << "3" << std::endl;
-    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, rtaudio_callback, data);
-    std::cout << "4" << std::endl;
-    audio->startStream();
-    std::cout << "5" << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(5));
-    audio->stopStream();
-    audio->closeStream();
-    delete audio;
-    
-    return 0;
-}
-
-
-
-
-/*
-void alInit () {
-    ALCdevice* Device = alcOpenDevice(alcGetString(NULL, ALC_DEFAULT_DEVICE_SPECIFIER));
-    ALCcontext* Context = alcCreateContext(Device,NULL);
-    alcMakeContextCurrent(Context);
 }
 
 void synthInit() {
-    alInit();
+    unsigned int bufsize = 1024;
+    CallbackData *data = (CallbackData*)calloc(1, sizeof(CallbackData));
+    try {
+        audio = new RtAudio();
+    }catch  (RtAudioError e){
+        fprintf(stderr, "fail to create RtAudio: %s¥n", e.what());
+        //exit(1);
+    }
+    if (!audio){
+        fprintf(stderr, "fail to allocate RtAudio¥n");
+        //exit(1);
+    }
+    
+    /* probe audio devices */
+    unsigned int devId = audio->getDefaultOutputDevice();
+    
+    /* Setup output stream parameters */
+    RtAudio::StreamParameters *outParam = new RtAudio::StreamParameters();
+    outParam->deviceId = devId;
+    outParam->nChannels = 2;
+    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, rtaudio_callback, data);
 }
 
-void exit_al() {
-    ALCdevice *dev = NULL;
-    ALCcontext *ctx = NULL;
-    ctx = alcGetCurrentContext();
-    dev = alcGetContextsDevice(ctx);
-    
-    alcMakeContextCurrent(NULL);
-    alcDestroyContext(ctx);
-    alcCloseDevice(dev);
-}
 void synthDestroy() {
-    t->join();
-    exit_al();
+    audio->closeStream();
+    delete audio;
 }
 
 
 
 void startSound(int initialDynamic = 0, int articulation = 0, int duration = 0) {
-    stop = false;
-    //make buffer to fill with sin
-    ALuint buf;
-    alGenBuffers(1, &buf);
-    al_check_error();
-    alBufferData(buf, AL_FORMAT_MONO16, inst.d, inst.numFrames*GRANULARITY, SAMPLE_RATE);
-    al_check_error();
-    
-    
-    //set up source
-    ALuint src = 0;
-    alGenSources(1, &src);
-    alSourceQueueBuffers(src, 1, &buf);
-    alSourcePlay(src);
-    
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-    
-    
-//    //wait until cutoff
-//    sinLock.lock();
-//    std::unique_lock<std::mutex> lock(sinLock, std::adopt_lock);
-//    cutoff.wait(lock, []{return stop;});
-//    
-    //  turn off sin wave
-    alSourceStop(src);
-    
-}
-
-void soundStart(int initialDynamic, int articulation, int duration) {
-    t = new std::thread(startSound, initialDynamic, articulation, duration);
-    //sinThread->detach();
+    //dB = 20 * log10(amplitude) then convert to scale of 0 - master
+    audio->startStream();
 }
 
 void releaseSound() {
-    sinLock.lock();
-    cutoff.notify_one();
-    stop = true;
-    sinLock.unlock();
+    audio->stopStream();
 }
 
-void soundRelease() {
-    std::thread* releaser = new std::thread(releaseSound);
-    releaser->detach();
+
+int main(int argc, char* argv[]) {
+    synthInit();
+    startSound();
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    releaseSound();
+    synthDestroy();
+    return 0;
 }
-*/
