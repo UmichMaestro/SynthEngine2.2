@@ -15,6 +15,7 @@
 #include <chrono>
 #include <vector>
 #include "RtAudio.h"
+#include "parse_msm.c"
 /*
 //globals
 std::mutex sinLock;
@@ -160,6 +161,8 @@ static int rtaudio_callback(void *outbuf, void *inbuf, unsigned int nFrames, dou
 }
 
 int main(int argc, char* argv[]) {
+    Model m = parseMSMAtPath("Horn.ff.C4B4-10-442.msm");
+    
     std::cout << "0" << std::endl;
     RtAudio *audio;
     unsigned int bufsize = 4096;
