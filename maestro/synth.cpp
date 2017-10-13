@@ -202,9 +202,6 @@ Synth::Synth() {
     outParam->nChannels = 2;
     
     data = new CallbackData();
-    
-    
-    
 }
 
 void Synth::synthInit(std::string path) {
