@@ -12,8 +12,8 @@ typedef struct {
     double frequency;
     uint32_t partials;
     uint32_t duration;
-    uint32_t loopStart; // attack - sustain
-    uint32_t loopFinish; // sustain - release
+    uint32_t start; // attack - sustain
+    uint32_t finish; // sustain - release
     uint64_t empty[5]; // for later use...
 } Metadata;
 
@@ -29,8 +29,8 @@ MaestroSynthModel::MaestroSynthModel(std::string path) {
     this->frequency = meta.frequency;
     this->partials = meta.partials;
     this->duration = meta.duration;
-    this->loopStart = meta.loopStart;
-    this->loopFinish = meta.loopFinish;
+    this->sustainStart = meta.start;
+    this->sustainFinish = meta.finish;
 //    printf("fundamental freq: %lf\n", model.frequency);
 //    printf("size: %d %d\n", model.partials, model.duration);
     

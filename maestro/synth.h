@@ -20,9 +20,9 @@ class Synth {
     RtAudio *audio;
     RtAudio::StreamParameters *outParam;
     
+public:
     CallbackData *data;
     
-public:
 //    Synth(std::string path);
     Synth();
 
@@ -37,6 +37,8 @@ public:
     
     //call this to end a sound
     void soundRelease();
-
+    
+    void soundStop();
+    
 };
 

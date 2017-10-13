@@ -15,8 +15,8 @@ public:
     double frequency;
     uint32_t partials;
     uint32_t duration;
-    uint32_t loopStart;
-    uint32_t loopFinish;
+    uint32_t sustainStart;
+    uint32_t sustainFinish;
     
     MaestroSynthModel(std::string path);
     double* amplitudeForTime(int t);

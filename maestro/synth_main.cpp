@@ -13,18 +13,28 @@ int main(int argc, char* argv[]) {
         "Bassoon.ff.C4B4-10-444.msm",
         "flute.nonvib.ff.B3B4-11-442.msm"
     };
-
+    
     Synth *s = new Synth();
-    for (string path : paths) {
-        cout << path << endl;
-        s->synthInit(path);
+    
+    int i = 0;
+    while (true) {
+        cout << "Choose instrument to play. Enter 1 ~ 5: ";
+        cin >> i;
+        cin.get();
+        
+        if (i<1 || i>5)
+            break;
+        
+        s->synthInit(paths[i-1]);
         s->soundStart();
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        
+        cout << "To release, press ENTER: ";
+        if (cin.get() == '\n')
+            cout << endl;
+        
         s->soundRelease();
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-    
-    
-    
     
     return 0;
 }

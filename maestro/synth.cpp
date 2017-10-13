@@ -114,7 +114,8 @@ static int rtaudio_callback(void *outbuf, void *inbuf, unsigned int nFrames, dou
     float *buf = (float*)outbuf;
     memset(outbuf, 0, nFrames*2*sizeof(float));
     
-    CallbackData *data = (CallbackData*)userdata;
+    Synth* self = (Synth*)userdata;
+    CallbackData *data = (CallbackData*)self->data;
     int time = data->time;
     
     int partials = data->msm->partials;
@@ -124,41 +125,65 @@ static int rtaudio_callback(void *outbuf, void *inbuf, unsigned int nFrames, dou
     
     double phase = data->phase;
     
+    int sustainStart = data->msm->sustainStart;
+    int sustainFinish = data->msm->sustainFinish;
+    
     for (int t = 0; t < BUFFER_MSM_COUNT; t++) {
-        double *amp0 = data->msm->amplitudeForTime(time+t);
-        double *amp1 = data->msm->amplitudeForTime(time+t+1);
-        if (amp0 == NULL || amp1 == NULL) {
-            std::cout << "Reached the end.\n";
-            return 1; // TODO::::
-        }
-        
-        double p = phase;
-        for (int i=0; i<partials; i++) {
-            double a0 = amp0[i];
-            double a1 = amp1[i];
-            p = phase;
-            for (int s = 0; s < SAMPLE_WINDOW; s++) {
-                double amp = a0 + (a1-a0)*s/(double)SAMPLE_WINDOW; // amp interpolation
-                double out = amp * sin(p*(i+1)) / 256;
-                int outIndex = t*SAMPLE_WINDOW + s;
-                buf[outIndex*2] += out;
-                buf[outIndex*2+1] += out;
-                p += phaseIncr;
+        if (time+t < sustainStart || time+t > sustainFinish) {
+            double *amp0 = data->msm->amplitudeForTime(time+t);
+            double *amp1 = data->msm->amplitudeForTime(time+t+1);
+            if (amp0 == NULL || amp1 == NULL) {
+//                std::cout << "Reached the end.\n";
+                self->soundStop();
+                return 1; // TODO::::
             }
             
+            double p = phase;
+            for (int i=0; i<partials; i++) {
+                double a0 = amp0[i];
+                double a1 = amp1[i];
+                p = phase;
+                for (int s = 0; s < SAMPLE_WINDOW; s++) {
+                    double amp = a0 + (a1-a0)*s/(double)SAMPLE_WINDOW; // amp interpolation
+                    double out = amp * sin(p*(i+1)) / 256;
+                    int outIndex = t*SAMPLE_WINDOW + s;
+                    buf[outIndex*2] += out;
+                    buf[outIndex*2+1] += out;
+                    p += phaseIncr;
+                }
+                
+            }
+            phase = p;
+            
+            data->time ++;
+        } else {
+            double *amp0 = data->msm->amplitudeForTime(sustainStart);
+            double *amp1 = data->msm->amplitudeForTime(sustainFinish);
+            
+            double p = phase;
+            for (int i=0; i<partials; i++) {
+                double amp = (amp0[i] + amp1[i])/2.0;
+                p = phase;
+                for (int s = 0; s < SAMPLE_WINDOW; s++) {
+                    double out = amp * sin(p*(i+1)) / 256;
+                    int outIndex = t*SAMPLE_WINDOW + s;
+                    buf[outIndex*2] += out;
+                    buf[outIndex*2+1] += out;
+                    p += phaseIncr;
+                }
+                
+            }
+            phase = p;
         }
-        phase = p;
     }
     
-    data->time += BUFFER_MSM_COUNT;
+    
     data->phase = phase;
     
     return 0;
 }
 
 Synth::Synth() {
-    std::cout << "0" << std::endl;
-    
     try {
         audio = new RtAudio(RtAudio::MACOSX_CORE);
     }catch  (RtAudioError e){
@@ -171,10 +196,8 @@ Synth::Synth() {
     }
     /* probe audio devices */
     unsigned int devId = audio->getDefaultOutputDevice();
-    std::cout << "1" << std::endl;
     /* Setup output stream parameters */
     outParam = new RtAudio::StreamParameters();
-    std::cout << "2" << std::endl;
     outParam->deviceId = devId;
     outParam->nChannels = 2;
     
@@ -191,21 +214,25 @@ void Synth::synthInit(std::string path) {
     data->time = 0;
     data->msm = this->msm;
     
-    std::cout << "Partials: " << msm->partials << std::endl;
-    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, rtaudio_callback, data);
+//    std::cout << "Partials: " << msm->partials << std::endl;
+    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, rtaudio_callback, this);
     
     return;
 }
 
 void Synth::soundStart() {
-    std::cout << "4" << std::endl;
+//    std::cout << "Start sound" << std::endl;
     audio->startStream();
 }
 
 void Synth::soundRelease() {
-    std::cout << "5" << std::endl;
+//    std::cout << "Release" << std::endl;
+    data->time = msm->sustainFinish;
+}
+
+void Synth::soundStop() {
+//    std::cout << "Stop" << std::endl;
     if(audio->isStreamOpen()) {
-//        audio->stopStream();
         audio->closeStream();
     }
 }
