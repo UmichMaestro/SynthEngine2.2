@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
         s->synthInit(paths[i-1]);
         s->soundStart();
         
-        cout << "To release, press ENTER: ";
+        cout << "Sustaining.... To release, press ENTER: ";
         if (cin.get() == '\n')
             cout << endl;
         
