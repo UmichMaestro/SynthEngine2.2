@@ -13,6 +13,8 @@ typedef struct {
     double phase;
     int time;
     MaestroSynthModel *msm;
+    double currentGain;
+    double targetGain;
 } CallbackData;
 
 class Synth {
@@ -33,10 +35,12 @@ public:
     void synthDestroy();
     
     //call this to start a sound (call with no args for prototype)
-    void soundStart();
+    void soundStart(double initialGain = 1.0);
     
     //call this to end a sound
     void soundRelease();
+    
+    void updateGain(double targetGain);
     
     void soundStop();
     

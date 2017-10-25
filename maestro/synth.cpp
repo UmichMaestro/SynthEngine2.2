@@ -128,6 +128,10 @@ static int rtaudio_callback(void *outbuf, void *inbuf, unsigned int nFrames, dou
     int sustainStart = data->msm->sustainStart;
     int sustainFinish = data->msm->sustainFinish;
     
+    double currentGain = data->currentGain;
+    double targetGain = data->targetGain;
+    double gainIncr = (currentGain == targetGain) ? 0 : (targetGain-currentGain)/nFrames;
+    
     for (int t = 0; t < BUFFER_MSM_COUNT; t++) {
         if (time+t < sustainStart || time+t > sustainFinish) {
             double *amp0 = data->msm->amplitudeForTime(time+t);
@@ -138,47 +142,43 @@ static int rtaudio_callback(void *outbuf, void *inbuf, unsigned int nFrames, dou
                 return 1; // TODO::::
             }
             
-            double p = phase;
-            for (int i=0; i<partials; i++) {
-                double a0 = amp0[i];
-                double a1 = amp1[i];
-                p = phase;
-                for (int s = 0; s < SAMPLE_WINDOW; s++) {
+            for (int s = 0; s < SAMPLE_WINDOW; s++) {
+                for (int i=0; i<partials; i++) {
+                    double a0 = amp0[i];
+                    double a1 = amp1[i];
                     double amp = a0 + (a1-a0)*s/(double)SAMPLE_WINDOW; // amp interpolation
-                    double out = amp * sin(p*(i+1)) / 256;
+                    amp *= currentGain;
+                    double out = amp * sin(phase*(i+1)) / 1000;
                     int outIndex = t*SAMPLE_WINDOW + s;
                     buf[outIndex*2] += out;
                     buf[outIndex*2+1] += out;
-                    p += phaseIncr;
                 }
-                
+                phase += phaseIncr;
+                currentGain += gainIncr;
             }
-            phase = p;
             
             data->time ++;
         } else {
             double *amp0 = data->msm->amplitudeForTime(sustainStart);
             double *amp1 = data->msm->amplitudeForTime(sustainFinish);
             
-            double p = phase;
-            for (int i=0; i<partials; i++) {
-                double amp = (amp0[i] + amp1[i])/2.0;
-                p = phase;
-                for (int s = 0; s < SAMPLE_WINDOW; s++) {
-                    double out = amp * sin(p*(i+1)) / 256;
+            for (int s = 0; s < SAMPLE_WINDOW; s++) {
+                for (int i=0; i<partials; i++) {
+                    double amp = (amp0[i] + amp1[i])/2.0;
+                    amp *= currentGain;
+                    double out = amp * sin(phase*(i+1)) / 1000;
                     int outIndex = t*SAMPLE_WINDOW + s;
                     buf[outIndex*2] += out;
                     buf[outIndex*2+1] += out;
-                    p += phaseIncr;
                 }
-                
+                phase += phaseIncr;
+                currentGain += gainIncr;
             }
-            phase = p;
         }
     }
     
-    
     data->phase = phase;
+    data->currentGain = targetGain;
     
     return 0;
 }
@@ -217,9 +217,16 @@ void Synth::synthInit(std::string path) {
     return;
 }
 
-void Synth::soundStart() {
+void Synth::soundStart(double initialGain) {
 //    std::cout << "Start sound" << std::endl;
+    data->currentGain = initialGain;
+    data->targetGain = initialGain;
+    
     audio->startStream();
+}
+
+void Synth::updateGain(double targetGain) {
+    data->targetGain = targetGain;
 }
 
 void Synth::soundRelease() {
