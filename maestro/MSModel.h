@@ -6,6 +6,9 @@
 //  Copyright © 2017 Bangtoven. All rights reserved.
 //
 
+#ifndef MSModel_h
+#define MSModel_h
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -25,3 +28,5 @@ private:
     double *amplitudes;
     
 };
+
+#endif
