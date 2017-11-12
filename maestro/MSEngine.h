@@ -18,15 +18,21 @@ typedef struct {
 } CallbackData;
 
 class MSEngine {
+public:
+    static MSEngine& sharedEngine() { // singleton
+        static MSEngine instance;
+        return instance;
+    }
+    
+private:
+    MSEngine();
+    
     MSModel *msm;
     RtAudio *audio;
     RtAudio::StreamParameters *outParam;
     
 public:
     CallbackData *data;
-    
-    //    Synth(std::string path);
-    MSEngine();
     
     //call this function at the beginning of the program's execution to init the synth
     void synthInit(std::string path);

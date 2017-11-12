@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
         "flute.nonvib.ff.B3B4-11-442.msm"
     };
     
-    MSEngine *s = new MSEngine();
+    MSEngine s = MSEngine::sharedEngine();
     
     int i = 0;
     while (true) {
@@ -25,30 +25,30 @@ int main(int argc, char* argv[]) {
         if (i<1 || i>5)
             break;
         
-        s->synthInit(paths[i-1]);
+        s.synthInit(paths[i-1]);
         
         cout << "Gain change test\n";
-        s->soundStart(0.5); // initial gain = 0.5
+        s.soundStart(0.5); // initial gain = 0.5
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        s->updateGain(1.0);
+        s.updateGain(1.0);
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        s->updateGain(0.1);
+        s.updateGain(0.1);
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        s->updateGain(2.0);
+        s.updateGain(2.0);
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        s->updateGain(0.5);
+        s.updateGain(0.5);
         std::this_thread::sleep_for(std::chrono::seconds(1));
         
         cout << "cresendo test\n";
         for (int i=0; i<100; i++) {
-            s->updateGain(0.5 + i*0.015);
+            s.updateGain(0.5 + i*0.015);
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
         
         cout << "decresendo test\n";
         for (int i=0; i<100; i++) {
-            s->updateGain(2.0 - i*0.015);
+            s.updateGain(2.0 - i*0.015);
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -62,13 +62,13 @@ int main(int argc, char* argv[]) {
 //            if (gain<=0 || gain>2)
 //                break;
 //
-//            s->updateGain(gain);
+//            s.updateGain(gain);
 //        }
 //
 ////        if (cin.get() == '\n')
 //            cout << endl;
         
-        s->soundRelease();
+        s.soundRelease();
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     
