@@ -2,7 +2,7 @@
 //  main.c
 //  ReadBinary
 //
-//  Created by 방정호 on 3/15/17.
+//  Created by Jungho Bang on 3/15/17.
 //  Copyright © 2017 Bangtoven. All rights reserved.
 //
 
