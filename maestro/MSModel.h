@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string>
 
-class MaestroSynthModel {
+class MSModel {
 public:
     double frequency;
     uint32_t partials;
@@ -18,7 +18,7 @@ public:
     uint32_t sustainStart;
     uint32_t sustainFinish;
     
-    MaestroSynthModel(std::string path);
+    MSModel(std::string path);
     double* amplitudeForTime(int t);
     
 private:

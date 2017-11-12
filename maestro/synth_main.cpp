@@ -1,4 +1,4 @@
-#include "synth.h"
+#include "MSEngine.h"
 #include <string>
 #include <thread>
 #include <chrono>
@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
         "flute.nonvib.ff.B3B4-11-442.msm"
     };
     
-    Synth *s = new Synth();
+    MSEngine *s = new MSEngine();
     
     int i = 0;
     while (true) {

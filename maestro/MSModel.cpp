@@ -17,7 +17,7 @@ typedef struct {
     uint64_t empty[5]; // for later use...
 } Metadata;
 
-MaestroSynthModel::MaestroSynthModel(std::string path) {
+MSModel::MSModel(std::string path) {
     FILE *file = fopen(path.c_str(),"rb");
     if (!file) {
         printf("Unable to open file!");
@@ -41,7 +41,7 @@ MaestroSynthModel::MaestroSynthModel(std::string path) {
     fclose(file);
 }
 
-double* MaestroSynthModel::amplitudeForTime(int t) {
+double* MSModel::amplitudeForTime(int t) {
     if (t<duration)
         return &amplitudes[t*partials];
     else
