@@ -13,10 +13,20 @@
 
 class MSInstrument {
     MSModel *msm;
+    double phase;
+    int time;
+    double currentGain;
+    double targetGain;
+    
+    void synthesize(float *outbuf, unsigned int nFrames);
     
 public:
     MSInstrument(MSModel *msm);
-//    MSInstrument(std::string path);
+    MSInstrument(std::string path);
+    
+    void start(double initialGain = 1.0);
+    void setGain(double gain);
+    void release();
     
     friend class MSEngine;
 };

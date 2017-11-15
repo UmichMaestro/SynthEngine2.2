@@ -13,6 +13,10 @@
 #include "MSInstrument.h"
 #include "MSModel.h"
 
+#define SAMPLE_RATE 44100.0
+#define SAMPLE_WINDOW 441
+#define BUFFER_MSM_COUNT 4 // how many msm amp data in each buffer
+
 typedef struct {
     double phase;
     int time;
@@ -20,6 +24,8 @@ typedef struct {
     double currentGain;
     double targetGain;
 } CallbackData;
+
+using namespace std;
 
 class MSEngine {
 public:
@@ -30,31 +36,15 @@ public:
     
 private:
     MSEngine();
-    
-    MSModel *msm;
     RtAudio *audio;
     RtAudio::StreamParameters *outParam;
+    vector<MSInstrument*> *instruments;
     
 public:
-    CallbackData *data;
+    void synthesize(float *buf, unsigned int nFrames);
     
-    void attach(MSInstrument *inst);
-    std::vector<MSInstrument*> activeInstruments();
-    void detach(MSInstrument *inst);
-    
-    // --------------
-    
-    void synthInit(std::string path);
-    
-    
-    void soundStart(double initialGain = 1.0);
-    void soundRelease();
-    
-    void updateGain(double targetGain);
-    
-    
-    void soundStop();
-    void synthDestroy();
+    void attachInstrument(MSInstrument *inst);
+    void clearInstruments();
 };
 
 #endif
