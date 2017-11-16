@@ -12,7 +12,6 @@
 #include "MSModel.h"
 
 class MSInstrument {
-    MSModel *msm;
     double phase;
     int time;
     double currentGain;
@@ -21,6 +20,8 @@ class MSInstrument {
     void synthesize(float *outbuf, unsigned int nFrames);
     
 public:
+    MSModel *msm;
+    
     MSInstrument(MSModel *msm);
     MSInstrument(std::string path);
     

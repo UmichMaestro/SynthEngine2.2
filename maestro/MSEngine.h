@@ -8,7 +8,7 @@
 #ifndef MSEngine_h
 #define MSEngine_h
 
-#include <string>
+#include <stdio.h>
 #include "RtAudio.h"
 #include "MSInstrument.h"
 #include "MSModel.h"
@@ -16,14 +16,6 @@
 #define SAMPLE_RATE 44100.0
 #define SAMPLE_WINDOW 441
 #define BUFFER_MSM_COUNT 4 // how many msm amp data in each buffer
-
-typedef struct {
-    double phase;
-    int time;
-    MSModel *msm;
-    double currentGain;
-    double targetGain;
-} CallbackData;
 
 using namespace std;
 
@@ -40,11 +32,19 @@ private:
     RtAudio::StreamParameters *outParam;
     vector<MSInstrument*> *instruments;
     
-public:
-    void synthesize(float *buf, unsigned int nFrames);
+    static int staticCallback(void *outbuf, void *inbuf, unsigned int nFrames, double streamtime, RtAudioStreamStatus status, void *userdata) {
+        float* buf = (float*)outbuf;
+        memset(buf, 0, nFrames*2*sizeof(float));
+        for (MSInstrument *i : ((MSEngine*)userdata)->getInstruments()) {
+            i->synthesize(buf, nFrames);
+        }
+        return 0;
+    }
     
+public:
     void attachInstrument(MSInstrument *inst);
     void clearInstruments();
+    vector<MSInstrument*>& getInstruments();
 };
 
 #endif

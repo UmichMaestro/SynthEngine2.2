@@ -19,7 +19,6 @@ MSInstrument::MSInstrument(std::string path) {
 }
 
 void MSInstrument::synthesize(float *buf, unsigned int nFrames) {
-    int time = this->time;
     if (time < 0) // not activated
         return;
     
@@ -28,14 +27,13 @@ void MSInstrument::synthesize(float *buf, unsigned int nFrames) {
     int fundamentalFreq = msm->frequency;
     double phaseIncr = F * fundamentalFreq;
     
-    double phase = this->phase;
+    double p = phase;
     
     int sustainStart = msm->sustainStart;
     int sustainFinish = msm->sustainFinish;
     
-    double currentGain = this->currentGain;
-    double targetGain = this->targetGain;
-    double gainIncr = (currentGain == targetGain) ? 0 : (targetGain-currentGain)/nFrames;
+    double gain = currentGain;
+    double gainIncr = (gain == targetGain) ? 0 : (targetGain-gain)/nFrames;
     
     for (int t = 0; t < BUFFER_MSM_COUNT; t++) {
         if (time+t < sustainStart || time+t > sustainFinish) {
@@ -43,7 +41,7 @@ void MSInstrument::synthesize(float *buf, unsigned int nFrames) {
             double *amp1 = msm->amplitudeForTime(time+t+1);
             if (amp0 == NULL || amp1 == NULL) {
                 std::cout << "Reached the end.\n";
-                this->time = -1;
+                time = -1;
                 return;
             }
             
@@ -52,17 +50,17 @@ void MSInstrument::synthesize(float *buf, unsigned int nFrames) {
                     double a0 = amp0[i];
                     double a1 = amp1[i];
                     double amp = a0 + (a1-a0)*s/(double)SAMPLE_WINDOW; // amp interpolation
-                    amp *= currentGain;
-                    double out = amp * sin(phase*(i+1)) / 1000;
+                    amp *= gain;
+                    double out = amp * sin(p*(i+1)) / 1000;
                     int outIndex = t*SAMPLE_WINDOW + s;
                     buf[outIndex*2] += out;
                     buf[outIndex*2+1] += out;
                 }
-                phase += phaseIncr;
-                currentGain += gainIncr;
+                p += phaseIncr;
+                gain += gainIncr;
             }
             
-            this->time ++;
+            time ++;
         } else {
             double *amp0 = msm->amplitudeForTime(sustainStart);
             double *amp1 = msm->amplitudeForTime(sustainFinish);
@@ -70,33 +68,35 @@ void MSInstrument::synthesize(float *buf, unsigned int nFrames) {
             for (int s = 0; s < SAMPLE_WINDOW; s++) {
                 for (int i=0; i<partials; i++) {
                     double amp = (amp0[i] + amp1[i])/2.0;
-                    amp *= currentGain;
-                    double out = amp * sin(phase*(i+1)) / 1000;
+                    amp *= gain;
+                    double out = amp * sin(p*(i+1)) / 1000;
                     int outIndex = t*SAMPLE_WINDOW + s;
                     buf[outIndex*2] += out;
                     buf[outIndex*2+1] += out;
                 }
-                phase += phaseIncr;
-                currentGain += gainIncr;
+                p += phaseIncr;
+                gain += gainIncr;
             }
         }
     }
     
-    this->phase = phase;
-    this->currentGain = targetGain;
+    phase = p;
+    currentGain = targetGain;
     
     return;
 }
 
 void MSInstrument::start(double initialGain) {
-    this->currentGain = initialGain;
-    this->targetGain = initialGain;
+    currentGain = initialGain;
+    targetGain = initialGain;
+    
+    time = 0;
 }
 
 void MSInstrument::setGain(double gain) {
-    this->targetGain = gain;
+    targetGain = gain;
 }
 
 void MSInstrument::release() {
-    this->time = this->msm->sustainFinish;
+    time = msm->sustainFinish;
 }
