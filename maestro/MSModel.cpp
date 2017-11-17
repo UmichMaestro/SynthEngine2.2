@@ -31,8 +31,6 @@ MSModel::MSModel(std::string path) {
     this->duration = meta.duration;
     this->sustainStart = meta.start;
     this->sustainFinish = meta.finish;
-//    printf("fundamental freq: %lf\n", model.frequency);
-//    printf("size: %d %d\n", model.partials, model.duration);
     
     int cells = meta.partials * meta.duration;
     amplitudes = (double*)malloc(cells * sizeof(double));

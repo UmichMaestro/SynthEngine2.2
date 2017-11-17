@@ -20,7 +20,7 @@ class MSInstrument {
     void synthesize(float *outbuf, unsigned int nFrames);
     
 public:
-    MSModel *msm;
+    MSModel *msm; // FIXME::::::::: this should be private.
     
     MSInstrument(MSModel *msm);
     MSInstrument(std::string path);

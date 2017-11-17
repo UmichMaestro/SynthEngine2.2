@@ -33,11 +33,9 @@ private:
     vector<MSInstrument*> *instruments;
     
     static int staticCallback(void *outbuf, void *inbuf, unsigned int nFrames, double streamtime, RtAudioStreamStatus status, void *userdata) {
-        float* buf = (float*)outbuf;
-        memset(buf, 0, nFrames*2*sizeof(float));
-        for (MSInstrument *i : ((MSEngine*)userdata)->getInstruments()) {
-            i->synthesize(buf, nFrames);
-        }
+        memset(outbuf, 0, nFrames*2*sizeof(float));
+        for (MSInstrument *i : ((MSEngine*)userdata)->getInstruments())
+            i->synthesize((float*)outbuf, nFrames);
         return 0;
     }
     
