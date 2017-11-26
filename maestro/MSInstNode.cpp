@@ -5,16 +5,16 @@
 //  Created by Jungho Bang on 11/11/17.
 //
 
-#include "MSInstrument.h"
+#include "MSInstNode.h"
 #include "MSEngine.h"
 #include <cmath>
 
-MSInstrument::MSInstrument(MSModel *msm) {
+MSInstNode::MSInstNode(MSModel *msm) {
     this->msm = msm;
     time = -1;
 }
 
-MSInstrument::MSInstrument(std::string path) {
+MSInstNode::MSInstNode(std::string path) {
     MSModel *msm = new MSModel(path);
     this->msm = msm;
     time = -1;
@@ -31,7 +31,7 @@ double amplitudeInterpolate(double *amp0, double *amp1, int partial, int sample,
     }
 }
 
-void MSInstrument::synthesize(float *buf, unsigned int nFrames) {
+void MSInstNode::synthesize(float *buf, unsigned int nFrames) {
     if (time < 0) // not activated
         return;
     
@@ -87,7 +87,7 @@ void MSInstrument::synthesize(float *buf, unsigned int nFrames) {
     return;
 }
 
-void MSInstrument::start(double initialGain) {
+void MSInstNode::start(double initialGain) {
     std::cout << "Start" << endl;
     
     currentGain = initialGain;
@@ -96,11 +96,11 @@ void MSInstrument::start(double initialGain) {
     time = 0;
 }
 
-void MSInstrument::setGain(double gain) {
+void MSInstNode::setGain(double gain) {
     targetGain = gain;
 }
 
-void MSInstrument::release() {
+void MSInstNode::release() {
     std::cout << "Releasing..." << endl;
     
     time = msm->sustainFinish;

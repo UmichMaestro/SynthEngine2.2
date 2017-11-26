@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include "MSModel.h"
 
-class MSInstrument {
+class MSInstNode {
     MSModel *msm;
     double phase;
     int time;
@@ -21,8 +21,8 @@ class MSInstrument {
     void synthesize(float *outbuf, unsigned int nFrames);
     
 public:
-    MSInstrument(MSModel *msm);
-    MSInstrument(std::string path);
+    MSInstNode(MSModel *msm);
+    MSInstNode(std::string path);
     
     void start(double initialGain = 1.0);
     void setGain(double gain);
