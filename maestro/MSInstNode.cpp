@@ -9,15 +9,50 @@
 #include "MSEngine.h"
 #include <cmath>
 
-MSInstNode::MSInstNode(MSModel *msm) {
-    this->msm = msm;
+#define DEFAULT_ENV_DURATION 30 // envelope duration (attack, release) for not segmented MSM
+
+typedef struct {
+    double frequency;
+    uint32_t partials;
+    uint32_t duration;
+    uint32_t start; // attack - sustain
+    uint32_t finish; // sustain - release
+    uint64_t empty[5]; // for later use...
+} Metadata; // memory structure
+
+MSInstNode::MSInstNode(std::string path) {
+    FILE *file = fopen(path.c_str(),"rb");
+    if (!file) {
+        std::cout << "Unable to open file: " << path << std::endl;
+        return;
+    }
+    
+    Metadata meta;
+    fread(&meta, sizeof(Metadata), 1, file);
+    phaseIncr = M_PI * 2 / SAMPLE_RATE * meta.frequency;
+    partials = meta.partials;
+    duration = meta.duration;
+    if (meta.start == 0 || meta.finish == 0) {
+        std::cout << "Not segmented: " << path << std::endl;
+        sustainStart = DEFAULT_ENV_DURATION;
+        sustainFinish = meta.duration-DEFAULT_ENV_DURATION;
+    } else {
+        sustainStart = meta.start;
+        sustainFinish = meta.finish;
+    }
+    int cells = meta.partials * meta.duration;
+    amplitudes = (double*)malloc(cells * sizeof(double));
+    fread(amplitudes, sizeof(double), cells, file);
+    fclose(file);
+    
     time = -1;
 }
 
-MSInstNode::MSInstNode(std::string path) {
-    MSModel *msm = new MSModel(path);
-    this->msm = msm;
-    time = -1;
+double* MSInstNode::amplitudeForTime(int t) {
+    if (t<duration)
+        return &amplitudes[t*partials];
+    else
+        return NULL;
 }
 
 double amplitudeInterpolate(double *amp0, double *amp1, int partial, int sample, bool mean) {
@@ -35,15 +70,7 @@ void MSInstNode::synthesize(float *buf, unsigned int nFrames) {
     if (time < 0) // not activated
         return;
     
-    const double F = M_PI * 2 / SAMPLE_RATE;
-    int partials = msm->partials;
-    int fundamentalFreq = msm->frequency;
-    double phaseIncr = F * fundamentalFreq;
     double p = phase;
-    
-    int sustainStart = msm->sustainStart;
-    int sustainFinish = msm->sustainFinish;
-    
     double gain = currentGain;
     double gainIncr = (gain == targetGain) ? 0 : (targetGain-gain)/nFrames;
     
@@ -53,8 +80,8 @@ void MSInstNode::synthesize(float *buf, unsigned int nFrames) {
         
         if (time+t < sustainStart || time+t > sustainFinish) {
             mean = false;
-            amp0 = msm->amplitudeForTime(time+t);
-            amp1 = msm->amplitudeForTime(time+t+1);
+            amp0 = amplitudeForTime(time+t);
+            amp1 = amplitudeForTime(time+t+1);
             if (amp0 == NULL || amp1 == NULL) {
                 std::cout << "Released" << endl;
                 time = -1;
@@ -63,8 +90,8 @@ void MSInstNode::synthesize(float *buf, unsigned int nFrames) {
             time ++;
         } else {
             mean = true;
-            amp0 = msm->amplitudeForTime(sustainStart);
-            amp1 = msm->amplitudeForTime(sustainFinish);
+            amp0 = amplitudeForTime(sustainStart);
+            amp1 = amplitudeForTime(sustainFinish);
         }
             
         for (int s = 0; s < SAMPLE_WINDOW; s++) {
@@ -103,5 +130,5 @@ void MSInstNode::setGain(double gain) {
 void MSInstNode::release() {
     std::cout << "Releasing..." << endl;
     
-    time = msm->sustainFinish;
+    time = this->sustainFinish;
 }

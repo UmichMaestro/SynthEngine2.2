@@ -9,19 +9,27 @@
 #define MSInstrument_h
 
 #include <stdio.h>
-#include "MSModel.h"
+#include <string>
 
 class MSInstNode {
-    MSModel *msm;
+    // msm
+//    double frequency;
+    double phaseIncr;
+    uint32_t partials;
+    uint32_t duration;
+    uint32_t sustainStart;
+    uint32_t sustainFinish;
+    double *amplitudes;
+    
     double phase;
     int time;
     double currentGain;
     double targetGain;
     
+    double* amplitudeForTime(int t);
     void synthesize(float *outbuf, unsigned int nFrames);
     
 public:
-    MSInstNode(MSModel *msm);
     MSInstNode(std::string path);
     
     void start(double initialGain = 1.0);
