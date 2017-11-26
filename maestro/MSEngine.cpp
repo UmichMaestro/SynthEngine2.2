@@ -27,17 +27,17 @@ MSEngine::MSEngine() {
     outParam->deviceId = devId;
     outParam->nChannels = 2;
     
-    instruments = new vector<MSInstrument*>();
+    instruments = new vector<MSInstNode*>();
     
     audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, staticCallback, this);
     audio->startStream();
 }
 
-vector<MSInstrument*>& MSEngine::getInstruments() {
+vector<MSInstNode*>& MSEngine::getInstruments() {
     return *instruments;
 }
 
-void MSEngine::attachInstrument(MSInstrument *inst) {
+void MSEngine::attachInstrument(MSInstNode *inst) {
     instruments->push_back(inst);
 }
 

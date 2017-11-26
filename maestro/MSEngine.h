@@ -10,8 +10,7 @@
 
 #include <stdio.h>
 #include "RtAudio.h"
-#include "MSInstrument.h"
-#include "MSModel.h"
+#include "MSInstNode.h"
 
 #define SAMPLE_RATE 44100.0
 #define SAMPLE_WINDOW 441
@@ -30,19 +29,19 @@ private:
     MSEngine();
     RtAudio *audio;
     RtAudio::StreamParameters *outParam;
-    vector<MSInstrument*> *instruments;
+    vector<MSInstNode*> *instruments;
     
     static int staticCallback(void *outbuf, void *inbuf, unsigned int nFrames, double streamtime, RtAudioStreamStatus status, void *userdata) {
         memset(outbuf, 0, nFrames*2*sizeof(float));
-        for (MSInstrument *i : ((MSEngine*)userdata)->getInstruments())
+        for (MSInstNode *i : ((MSEngine*)userdata)->getInstruments())
             i->synthesize((float*)outbuf, nFrames);
         return 0;
     }
     
 public:
-    void attachInstrument(MSInstrument *inst);
+    void attachInstrument(MSInstNode *inst);
     void clearInstruments();
-    vector<MSInstrument*>& getInstruments();
+    vector<MSInstNode*>& getInstruments();
 };
 
 #endif
