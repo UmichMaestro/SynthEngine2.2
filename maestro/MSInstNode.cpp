@@ -9,7 +9,7 @@
 #include "MSEngine.h"
 #include <cmath>
 
-#define DEFAULT_ENV_DURATION 30 // envelope duration (attack, release) for not segmented MSM
+#define DEFAULT_ENV_DURATION 40 // envelope duration (attack, release) for not segmented MSM
 
 typedef struct {
     double frequency;
@@ -35,7 +35,7 @@ MSInstNode::MSInstNode(std::string path) {
     if (meta.start == 0 || meta.finish == 0) {
         std::cout << "Not segmented: " << path << std::endl;
         sustainStart = DEFAULT_ENV_DURATION;
-        sustainFinish = meta.duration-DEFAULT_ENV_DURATION;
+        sustainFinish = duration-DEFAULT_ENV_DURATION;
     } else {
         sustainStart = meta.start;
         sustainFinish = meta.finish;
@@ -56,18 +56,17 @@ double* MSInstNode::amplitudeForTime(int t) {
 }
 
 double amplitudeInterpolate(double *amp0, double *amp1, int partial, int sample, bool mean) {
-    if (sample < 0) {
-        return (amp0[partial] + amp1[partial])/2.0;
-    } else {
-        double a0 = amp0[partial];
-        double a1 = amp1[partial];
-        double amp = a0 + (a1-a0)*sample/(double)SAMPLE_WINDOW; // amp interpolation
-        return amp;
-    }
+    double a0 = amp0[partial];
+    double a1 = amp1[partial];
+    
+    if (mean)
+        return (a0+a1)/2.0;
+    else
+        return a0 + (a1-a0)*sample/(double)SAMPLE_WINDOW; // amp interpolation
 }
 
 void MSInstNode::synthesize(float *buf, unsigned int nFrames) {
-    if (time < 0) // not activated
+    if (time < 0) // not activated 
         return;
     
     double p = phase;
@@ -95,14 +94,15 @@ void MSInstNode::synthesize(float *buf, unsigned int nFrames) {
         }
             
         for (int s = 0; s < SAMPLE_WINDOW; s++) {
+            double out = 0;
             for (int i=0; i<partials; i++) {
                 double amp = amplitudeInterpolate(amp0, amp1, i, s, mean);
-                amp *= gain;
-                double out = amp * sin(p*(i+1)) / 1000;
-                int outIndex = t*SAMPLE_WINDOW + s;
-                buf[outIndex*2] += out;
-                buf[outIndex*2+1] += out;
+                out += amp * gain * sin(p*(i+1)) / 1000;
             }
+            int outIndex = t*SAMPLE_WINDOW + s;
+            buf[outIndex*2] += out;
+            buf[outIndex*2+1] += out;
+            
             p += phaseIncr;
             gain += gainIncr;
         }

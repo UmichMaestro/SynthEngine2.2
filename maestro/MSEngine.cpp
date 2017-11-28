@@ -7,6 +7,10 @@
 
 #include "MSEngine.h"
 
+static void errorCallback( RtAudioError::Type type, const std::string &errorText ) {
+    std::cout << errorText;
+}
+
 unsigned int bufsize = SAMPLE_WINDOW*BUFFER_MSM_COUNT;
 
 MSEngine::MSEngine() {
@@ -29,7 +33,7 @@ MSEngine::MSEngine() {
     
     instruments = new vector<MSInstNode*>();
     
-    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, staticCallback, this);
+    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, staticCallback, this, NULL, errorCallback);
     audio->startStream();
 }
 
