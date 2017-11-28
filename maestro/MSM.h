@@ -5,10 +5,13 @@
 //  Created by 방정호 on 3/15/17.
 //  Copyright © 2017 Bangtoven. All rights reserved.
 //
+#ifndef MSM_H
+#define MSM_H
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <stdint.h>
 
 class MaestroSynthModel {
 public:
@@ -25,3 +28,6 @@ private:
     double *amplitudes;
     
 };
+
+
+#endif

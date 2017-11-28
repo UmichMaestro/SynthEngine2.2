@@ -13,6 +13,8 @@
 #include <iostream>
 #include <vector>
 #include "synth.h"
+#include <memory.h>
+
 
 /*
 //globals
@@ -20,6 +22,13 @@ std::mutex sinLock;
 std::condition_variable cutoff;
 bool stop;
 */
+#define _USE_MATH_DEFINES
+
+#ifndef M_PI
+	#define M_PI 3.1415926358979323846
+#endif
+
+
 #define SAMPLE_RATE 44100.0
 #define SAMPLE_WINDOW 441
 #define BUFFER_MSM_COUNT 4 // how many msm amp data in each buffer
@@ -108,135 +117,177 @@ Instrument_t inst;
 std::thread *t;
 */
 
-static int rtaudio_callback(void *outbuf, void *inbuf, unsigned int nFrames, double streamtime, RtAudioStreamStatus status, void *userdata) {
-    const double F = M_PI * 2 / SAMPLE_RATE;
-    
-    float *buf = (float*)outbuf;
-    memset(outbuf, 0, nFrames*2*sizeof(float));
-    
-    Synth* self = (Synth*)userdata;
-    CallbackData *data = (CallbackData*)self->data;
-    int time = data->time;
-    
-    int partials = data->msm->partials;
-    
-    int fundamentalFreq = data->msm->frequency;
-    double phaseIncr = F * fundamentalFreq;
-    
-    double phase = data->phase;
-    
-    int sustainStart = data->msm->sustainStart;
-    int sustainFinish = data->msm->sustainFinish;
-    
-    for (int t = 0; t < BUFFER_MSM_COUNT; t++) {
-        if (time+t < sustainStart || time+t > sustainFinish) {
-            double *amp0 = data->msm->amplitudeForTime(time+t);
-            double *amp1 = data->msm->amplitudeForTime(time+t+1);
-            if (amp0 == NULL || amp1 == NULL) {
-//                std::cout << "Reached the end.\n";
-                self->soundStop();
-                return 1; // TODO::::
-            }
+static void error_callback(RtAudioError::Type type, const std::string &error) {
+	std::cout << "This is error::::: " + error << std::endl;
+}
+
+	static int rtaudio_callback(void *outbuf, void *inbuf, unsigned int nFrames, double streamtime, RtAudioStreamStatus status, void *userdata) {
+		const double F = M_PI * 2 / SAMPLE_RATE;
+
+		float *buf = (float*)outbuf;
+		memset(outbuf, 0, nFrames * 2 * sizeof(float));
+
+		Synth* self = (Synth*)userdata;
+		CallbackData *data = (CallbackData*)self->data;
+		
+		if (data->isPlaying == false)
+			return 0;
+
+		int time = data->time;
+
+		int partials = data->msm->partials;
+
+		int fundamentalFreq = data->msm->frequency;
+		double phaseIncr = F * fundamentalFreq;
+
+		double phase = data->phase;
+
+		int sustainStart = data->msm->sustainStart;
+		int sustainFinish = data->msm->sustainFinish;
+
+		double currentGain = data->currentGain;
+		double targetGain = data->targetGain;
+		double gainIncr = (currentGain == targetGain) ? 0 : (targetGain - currentGain) / nFrames;
+		
+		for (int t = 0; t < BUFFER_MSM_COUNT; t++) {
+			if (time + t < sustainStart || time + t > sustainFinish) {
+				double *amp0 = data->msm->amplitudeForTime(time + t);
+				double *amp1 = data->msm->amplitudeForTime(time + t + 1);
+				if (amp0 == NULL || amp1 == NULL) {
+					//                std::cout << "Reached the end.\n";
+					//self->soundStop();
+					data->isPlaying = false;
+					return 1; // TODO::::
+				}
+
+				for (int s = 0; s < SAMPLE_WINDOW; s++) {
+					for (int i=0; i<partials; i++) {
+						double a0 = amp0[i];
+						double a1 = amp1[i];
+						double amp = a0 + (a1-a0)*s/(double)SAMPLE_WINDOW; // amp interpolation
+						amp *= currentGain;
+						double out = amp * sin(phase*(i+1)) / 1000;
+						int outIndex = t*SAMPLE_WINDOW + s;
+						buf[outIndex*2] += out;
+						buf[outIndex*2+1] += out;
+					}
+					phase += phaseIncr;
+					currentGain += gainIncr;
+				}
             
-            double p = phase;
-            for (int i=0; i<partials; i++) {
-                double a0 = amp0[i];
-                double a1 = amp1[i];
-                p = phase;
-                for (int s = 0; s < SAMPLE_WINDOW; s++) {
-                    double amp = a0 + (a1-a0)*s/(double)SAMPLE_WINDOW; // amp interpolation
-                    double out = amp * sin(p*(i+1)) / 256;
-                    int outIndex = t*SAMPLE_WINDOW + s;
-                    buf[outIndex*2] += out;
-                    buf[outIndex*2+1] += out;
-                    p += phaseIncr;
-                }
-                
-            }
-            phase = p;
+				data->time ++;
+			} else {
+				double *amp0 = data->msm->amplitudeForTime(sustainStart);
+				double *amp1 = data->msm->amplitudeForTime(sustainFinish);
             
-            data->time ++;
-        } else {
-            double *amp0 = data->msm->amplitudeForTime(sustainStart);
-            double *amp1 = data->msm->amplitudeForTime(sustainFinish);
-            
-            double p = phase;
-            for (int i=0; i<partials; i++) {
-                double amp = (amp0[i] + amp1[i])/2.0;
-                p = phase;
-                for (int s = 0; s < SAMPLE_WINDOW; s++) {
-                    double out = amp * sin(p*(i+1)) / 256;
-                    int outIndex = t*SAMPLE_WINDOW + s;
-                    buf[outIndex*2] += out;
-                    buf[outIndex*2+1] += out;
-                    p += phaseIncr;
-                }
-                
-            }
-            phase = p;
-        }
-    }
+				for (int s = 0; s < SAMPLE_WINDOW; s++) {
+					for (int i=0; i<partials; i++) {
+						double amp = (amp0[i] + amp1[i])/2.0;
+						amp *= currentGain;
+						double out = amp * sin(phase*(i+1)) / 1000;
+						int outIndex = t*SAMPLE_WINDOW + s;
+						buf[outIndex*2] += out;
+						buf[outIndex*2+1] += out;
+					}
+					phase += phaseIncr;
+					currentGain += gainIncr;
+				}
+			}
+		}
     
+		data->phase = phase;
+		data->currentGain = targetGain;
     
-    data->phase = phase;
-    
-    return 0;
-}
+		return 0;
+	}
 
-Synth::Synth() {
-    try {
-        audio = new RtAudio(RtAudio::MACOSX_CORE);
-    }catch  (RtAudioError e){
-        fprintf(stderr, "fail to create RtAudio: %s¥n", e.what());
-        return ;
-    }
-    if (!audio){
-        fprintf(stderr, "fail to allocate RtAudio¥n");
-        return ;
-    }
-    /* probe audio devices */
-    unsigned int devId = audio->getDefaultOutputDevice();
-    /* Setup output stream parameters */
-    outParam = new RtAudio::StreamParameters();
-    outParam->deviceId = devId;
-    outParam->nChannels = 2;
-    
-    data = new CallbackData();
-}
+	Synth::Synth() {
+		try {
+			audio = new RtAudio(RtAudio::UNSPECIFIED);
+		}
+		catch (RtAudioError e) {
+			fprintf(stderr, "fail to create RtAudio: %s¥n", e.what());
+			return;
+		}
+		if (!audio) {
+			fprintf(stderr, "fail to allocate RtAudio¥n");
+			return;
+		}
+		/* probe audio devices */
+		unsigned int devId = audio->getDefaultOutputDevice();
+		/* Setup output stream parameters */
+		outParam = new RtAudio::StreamParameters();
+		outParam->deviceId = devId;
+		outParam->nChannels = 2;
 
-void Synth::synthInit(std::string path) {
-    msm = new MaestroSynthModel(path);
-    
-    data->phase = 0;
-    data->time = 0;
-    data->msm = this->msm;
-    
-//    std::cout << "Partials: " << msm->partials << std::endl;
-    audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, rtaudio_callback, this);
-    
-    return;
-}
+		data = new CallbackData();
+	}
 
-void Synth::soundStart() {
-//    std::cout << "Start sound" << std::endl;
-    audio->startStream();
-}
 
-void Synth::soundRelease() {
-//    std::cout << "Release" << std::endl;
-    data->time = msm->sustainFinish;
-}
+	void Synth::msmInit() {
+		std::string paths[5] = { 
+			"C:\\Users\\MDPMaestro2\\Desktop\\w17Changes\\MaestroRun\\maestro_run\\instruments\\BbClar.ff.C4B4-5-330.msm" ,
+			"C:\\Users\\MDPMaestro2\\Desktop\\w17Changes\\MaestroRun\\maestro_run\\instruments\\Bassoon.mf.C3B3-1-131.msm",
+			"C:\\Users\\MDPMaestro2\\Desktop\\w17Changes\\MaestroRun\\maestro_run\\instruments\\flute.nonvib.ff.B3B4-11-442.msm",
+			"C:\\Users\\MDPMaestro2\\Desktop\\w17Changes\\MaestroRun\\maestro_run\\instruments\\Horn.ff.C4B4-10-442.msm",
+			"C:\\Users\\MDPMaestro2\\Desktop\\w17Changes\\MaestroRun\\maestro_run\\instruments\\oboe.mf.C4B4-8-441.msm"
+		};
 
-void Synth::soundStop() {
-//    std::cout << "Stop" << std::endl;
-    if(audio->isStreamOpen()) {
-        audio->closeStream();
-    }
-}
+		for (int i = 0; i < 5; ++i) {
+			msms[i] = new MaestroSynthModel(paths[i]);
 
-void Synth::synthDestroy() {
-    delete audio;
-}
+		}
+		msm = msms[0];
+
+	}
+
+	void Synth::synthInit() {
+		std::cout << "Am I reaching this point?" << std::endl;
+		msmInit();
+		data->phase = 0;
+			data->time = 0;
+			data->msm = this->msm;
+			std::cout << "can i see this?" << std::endl;
+			//    std::cout << "Partials: " << msm->partials << std::endl;
+			audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, rtaudio_callback, this);// , 0, error_callback	);
+		
+		return;
+	}
+
+	void Synth::soundStart(int index, double initialGain) {
+		    std::cout << "Start sound " << index << std::endl;
+		msm = msms[index];
+		data->msm = this->msm;
+		data->phase = 0;
+		data->time = 0;
+		data->isPlaying = true;
+
+		data->currentGain = initialGain;
+		data->targetGain = initialGain;
+
+		audio->startStream();
+	}
+
+	void Synth::updateGain(double targetGain) {
+		data->targetGain = targetGain;
+	}
+
+	void Synth::soundRelease() {
+		//    std::cout << "Release" << std::endl;
+		data->time = msm->sustainFinish;
+	}
+
+	void Synth::soundStop() {
+		//    std::cout << "Stop" << std::endl;
+		if (audio->isStreamOpen()) {
+			audio->closeStream();
+		}
+	}
+
+	void Synth::synthDestroy() {
+		delete audio;
+	}
+
 
 /*
 void alInit () {
@@ -312,3 +363,46 @@ void soundRelease() {
     releaser->detach();
 }
 */
+
+	Synth engine;
+
+	void synthInit_alias() {
+		//engine.synthInit("C:\\Users\\MDPMaestro2\\Desktop\\w17Changes\\MaestroRun\\maestro_run\\oboe.mf.C6Ab6-7-706.msm");
+		
+		std::cout << "Before synth init call" << std::endl;
+		engine.synthInit();
+		
+
+		
+	}
+		
+	//call this function at the end of the program's execution to clean up the synth
+	void synthDestroy_alias() {
+		engine.synthDestroy();
+	}
+
+	//call this to start a sound (call with no args for prototype)
+	void soundStart_alias(int index, double initialGain) {
+		//try {
+		//engine.synthInit("C:\\Users\\MDPMaestro2\\Desktop\\w17Changes\\MaestroRun\\maestro_run\\BbClar.ff.C4B4-10-440.msm");
+		engine.soundStart(index, initialGain);
+		//}
+/*
+		catch(std::exception &e){
+			std::cout << e.what() << std::endl;
+		}
+		*/
+	}
+
+	void updateGain_alias(double targetGain) {
+		engine.updateGain(targetGain);
+	}
+
+	//call this to end a sound
+	void soundRelease_alias() {
+		engine.soundRelease();
+	}
+
+	void soundStop_alias() {
+		engine.soundStop();
+	}
