@@ -22,19 +22,19 @@ void synthAttachInstrument(string path) {
 	s.attachInstrument(inst);
 }
 
-void soundStart(int index, double initialGain) {
+void synthSoundStart(int index, double initialGain) {
 	MSEngine s = MSEngine::sharedEngine();
 	MSInstNode *inst = s.getInstruments()[index];
 	inst->start(initialGain);
 }
 
-void updateGain(int index, double targetGain) {
+void synthUpdateGain(int index, double targetGain) {
 	MSEngine s = MSEngine::sharedEngine();
 	MSInstNode *inst = s.getInstruments()[index];
 	inst->setGain(targetGain);
 }
 
-void soundRelease(int index) {
+void synthSoundRelease(int index) {
 	MSEngine s = MSEngine::sharedEngine();
 	MSInstNode *inst = s.getInstruments()[index];
 	inst->release();
