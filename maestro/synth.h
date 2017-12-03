@@ -1,76 +1,32 @@
 //
-//  synth_2.1.h
+//  Synth Wrapper for C#
 //  Maestro Synth Engine
 //
 //  Created by Fisher Diede on 3/24/17
+// 	Updated by Jungho Bang on 12/2/17.
 //  University of Michigan MDP
 //
+
 #include <string>
-#include "RtAudio.h"
-#include "MSM.h"
+using namespace std;
 
+//----- INIT
+// Init doesn't need to be called multiple times (or, not at all). Now we use a singleton synth engine instance.
+// Clears instrument nodes in the synth singleton. 
+extern "C" __declspec(dllexport) void synthInit();
 
+// Load MSM in the path, load, and add it to the engine. 
+extern "C" __declspec(dllexport) void synthAttachInstrument(string path);
 
+// (Previous version) It loads hard-coded MSMs and attach them to the singleton synth engine instance.
+extern "C" __declspec(dllexport) void synthInit_prev();
 
-//#pragma once  
+//----- Control
 
+//call this to start a sound (call with no args for prototype)
+extern "C" __declspec(dllexport) void soundStart(int index, double initialGain);
 
+extern "C" __declspec(dllexport) void updateGain(int index, double targetGain);
 
-	typedef struct {
-		double phase;
-		int time;
-		MaestroSynthModel *msm;
-		bool isPlaying;
-
-		double currentGain;
-		double targetGain;
-	} CallbackData;
-
-	class Synth {
-		MaestroSynthModel *msm;
-		RtAudio *audio;
-		RtAudio::StreamParameters *outParam;
-		MaestroSynthModel *msms[5];
-
-	public:
-		CallbackData *data;
-
-		//    Synth(std::string path);
-		Synth();
-
-		void msmInit();
-
-		//call this function at the beginning of the program's execution to init the synth
-		void synthInit();
-
-		//call this function at the end of the program's execution to clean up the synth
-		void synthDestroy();
-
-		//call this to start a sound (call with no args for prototype)
-		void soundStart(int index, double initialGain = 1.0);
-
-		//call this to end a sound
-		void soundRelease();
-
-		void updateGain(double targetGain);
-
-		void soundStop();
-
-	};
-
-	extern "C" __declspec(dllexport) void synthInit_alias();
-
-	//call this function at the end of the program's execution to clean up the synth
-	extern "C" __declspec(dllexport) void synthDestroy_alias();
-
-	//call this to start a sound (call with no args for prototype)
-	extern "C" __declspec(dllexport) void soundStart_alias(int index, double initialGain);
-
-	extern "C" __declspec(dllexport) void updateGain_alias(double targetGain);
-
-	//call this to end a sound
-	extern "C" __declspec(dllexport) void soundRelease_alias();
-
-	extern "C" __declspec(dllexport) void soundStop_alias();
-
-
+//call this to end a sound
+extern "C" __declspec(dllexport) void soundRelease(int index);
