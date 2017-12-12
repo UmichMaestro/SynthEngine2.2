@@ -13,8 +13,7 @@
 
 class MSInstNode {
     // msm
-//    double frequency;
-    double phaseIncr;
+    double phaseIncr; 
     uint32_t partials;
     uint32_t duration;
     uint32_t sustainStart;
@@ -36,7 +35,7 @@ public:
     void setGain(double gain);
     void release();
     
-    friend class MSEngine;
+    friend class MSEngine; // MSEngine is allowed to access the private methods
 };
 
 #endif

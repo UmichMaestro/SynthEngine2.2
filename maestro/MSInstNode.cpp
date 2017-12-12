@@ -27,12 +27,13 @@ MSInstNode::MSInstNode(std::string path) {
         return;
     }
     
+    // load MSM file
     Metadata meta;
     fread(&meta, sizeof(Metadata), 1, file);
-    phaseIncr = M_PI * 2 / SAMPLE_RATE * meta.frequency;
+    phaseIncr = M_PI * 2 / SAMPLE_RATE * meta.frequency; // trigonometrical function trick. after this, we don't need frequency.
     partials = meta.partials;
     duration = meta.duration;
-    if (meta.start == 0 || meta.finish == 0) {
+    if (meta.start == 0 || meta.finish == 0) { // error handling for using not-segmented MSM file. 
         std::cout << "Not segmented: " << path << std::endl;
         sustainStart = DEFAULT_ENV_DURATION;
         sustainFinish = duration-DEFAULT_ENV_DURATION;
@@ -55,6 +56,7 @@ double* MSInstNode::amplitudeForTime(int t) {
         return NULL;
 }
 
+// interpolation between frame
 double amplitudeInterpolate(double *amp0, double *amp1, int partial, int sample, bool mean) {
     double a0 = amp0[partial];
     double a1 = amp1[partial];
@@ -71,23 +73,23 @@ void MSInstNode::synthesize(float *buf, unsigned int nFrames) {
     
     double p = phase;
     double gain = currentGain;
-    double gainIncr = (gain == targetGain) ? 0 : (targetGain-gain)/nFrames;
+    double gainIncr = (gain == targetGain) ? 0 : (targetGain-gain)/nFrames; // for ramping
     
-    for (int t = 0; t < BUFFER_MSM_COUNT; t++) {
+    for (int t = 0; t < BUFFER_MSM_COUNT; t++) { // for each MSM frame
         bool mean;
         double *amp0, *amp1;
         
-        if (time+t < sustainStart || time+t > sustainFinish) {
+        if (time+t < sustainStart || time+t > sustainFinish) { // play the MSM data if in attack or release
             mean = false;
             amp0 = amplitudeForTime(time+t);
             amp1 = amplitudeForTime(time+t+1);
             if (amp0 == NULL || amp1 == NULL) {
                 std::cout << "Released" << endl;
-                time = -1;
+                time = -1; // we don't want to play this instrument anymore
                 return;
             }
             time ++;
-        } else {
+        } else { // simulate sustain
             mean = true;
             amp0 = amplitudeForTime(sustainStart);
             amp1 = amplitudeForTime(sustainFinish);
@@ -100,11 +102,11 @@ void MSInstNode::synthesize(float *buf, unsigned int nFrames) {
                 out += amp * gain * sin(p*(i+1)) / 1000;
             }
             int outIndex = t*SAMPLE_WINDOW + s;
-            buf[outIndex*2] += out;
+            buf[outIndex*2] += out; // since we have two channels: left, right
             buf[outIndex*2+1] += out;
             
             p += phaseIncr;
-            gain += gainIncr;
+            gain += gainIncr; // ramping the gain change
         }
     }
     
@@ -124,7 +126,7 @@ void MSInstNode::start(double initialGain) {
 }
 
 void MSInstNode::setGain(double gain) {
-    targetGain = gain;
+    targetGain = gain; // actaul gain updating is handled in synthesize function with proper ramping
 }
 
 void MSInstNode::release() {

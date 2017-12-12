@@ -24,15 +24,15 @@ MSEngine::MSEngine() {
         fprintf(stderr, "fail to allocate RtAudio¥n");
         return ;
     }
-    /* probe audio devices */
-    unsigned int devId = audio->getDefaultOutputDevice();
-    /* Setup output stream parameters */
-    outParam = new RtAudio::StreamParameters();
-    outParam->deviceId = devId;
-    outParam->nChannels = 2;
     
     instruments = new vector<MSInstNode*>();
     
+    // parameter to open RtAudio stream
+    outParam = new RtAudio::StreamParameters();
+    outParam->deviceId = audio->getDefaultOutputDevice();
+    outParam->nChannels = 2;
+    
+    // callback is the static function defined in the header
     audio->openStream(outParam, NULL, RTAUDIO_FLOAT32, SAMPLE_RATE, &bufsize, staticCallback, this, NULL, errorCallback);
     audio->startStream();
 }

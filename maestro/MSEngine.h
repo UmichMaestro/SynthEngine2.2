@@ -31,10 +31,11 @@ private:
     RtAudio::StreamParameters *outParam;
     vector<MSInstNode*> *instruments;
     
+    // static function should be implemented in the class definition
     static int staticCallback(void *outbuf, void *inbuf, unsigned int nFrames, double streamtime, RtAudioStreamStatus status, void *userdata) {
         memset(outbuf, 0, nFrames*2*sizeof(float));
         for (MSInstNode *i : ((MSEngine*)userdata)->getInstruments())
-            i->synthesize((float*)outbuf, nFrames);
+            i->synthesize((float*)outbuf, nFrames); // MSEngine is friend class of MSInstNode, so it can call synthesize()
         return 0;
     }
     
